@@ -1,0 +1,240 @@
+<html> 
+	<head>
+		<style>
+			/* GLOBALS */
+			body { 
+				height: 100%; 
+				width: 100%; 
+				font-family: Courier;
+				background-color: #eee; }
+
+			/* FORM & FONTS */
+			form { 
+				width: 300px; 
+				height: 360px;
+				position: absolute;
+				left: 0; right: 0; top: 0; bottom: 0;
+				margin: auto;
+				-webkit-transition: all ease-in-out .5s;
+				-moz-transition: all ease-in-out .5s;
+				-o-transition: all ease-in-out .5s;
+				transition: all ease-in-out .5s; }
+			form h1 {
+				display: inline-block;
+				color: #767AB1; 
+				font-size: 30px; 
+				font-weight: 100;
+				margin: 0 0 8px; }
+			form p {
+				line-height: 30px;
+				font-size: 14px;
+				color: #5A5D64; }
+
+			/* INPUTS */
+			textarea { 
+				width: 300px; 
+				height: 220px; 
+				border: none; 
+				color: #7D8089; 
+				font-size: 16px; 
+				padding: 15px;
+				line-height: 20px; 
+				outline: none; }
+			input[type="button"] { 
+				float: right;
+				font-size: 14px; 
+				background-color: #767AB1;
+				color: white; 
+				letter-spacing: 2px;
+				border: none; 
+				padding: 10px 26px;
+				margin-top: 15px; 
+				outline: none;
+				cursor: pointer;
+				-webkit-transition: all .4s ease;
+				-moz-transition: all .4s ease;
+				-o-transition: all .4s ease;
+				transition: all .4s ease; }
+			input[type="button"]:hover { 
+				margin-top: 14px;
+				margin-right: -1px;
+				padding: 12px 28px;
+				background-color: #4E55B9; }
+			input[type="button"].refresh_button { margin-top: 0; }
+			input[type="button"].refresh_button:hover { margin-top: -1px; margin-right: -1px; }
+
+		  /* ID's */	
+			#intro p { 
+				color: #A0A3A9;
+				font-size: 10px; 
+				line-height: 14px; }
+			#intro i { color: #4E5589; }
+			#clean_email_list, #validated_text_container {
+				position: absolute; 
+				top: 75px; 
+				padding: 0 20px;
+				margin-bottom: 100px; 
+				background-color: #fff; }
+			#clean_email_list { right: 0; }
+			#validated_text_container { left: 0; }
+
+			/* CLASSES */
+			.hidden { display: none; }
+			.invalid { color: red; }
+			.invalid_email { border-bottom: 2px solid red }
+		</style>
+	</head> 
+
+	<body> 
+		<form id="email_list_form">
+			<div id="intro">
+				<p>
+					A contraption that breaks up a body of text
+					at offensive characters. Simple in form, should
+					not be used for production-grade email verification.
+				</p>
+			</div>
+			<h1>Shiver M'Emails</h1>
+			<textarea id="email_list" name="email_list"></textarea>
+			<input id="email_list_button" type="button" value="Populate"/>
+		</form>
+
+		<script>
+			var form = document.getElementById("email_list_form");
+			var button = document.getElementById("email_list_button");
+
+			function markAsInvalid(str_length, right_cursor, left_cursor, email, issue_flag) {
+				// Function highlights (in red) errors on the wings of the email
+				// Interior issues are more complex and are simply flagged as problematic
+				var validated_text_container = document.getElementById("validated_text_container"),
+
+				validated_text = document.createElement('p'),
+				invalid_left_span = document.createElement('span'),
+				invalid_right_span = document.createElement('span'),
+				valid_span = document.createElement('span'),
+
+				invalid_left_text= document.createTextNode(email.substring(0, left_cursor+1)),
+				invalid_right_text = document.createTextNode(email.substring(right_cursor, str_length));
+				valid_email= document.createTextNode(email.substring(left_cursor+1, right_cursor)),
+
+				invalid_left_span.setAttribute('class', 'invalid');
+				invalid_right_span.setAttribute('class', 'invalid');
+				if (invalid_left_text.length > 0 || invalid_right_text.length > 0 || issue_flag) {
+					validated_text.setAttribute('class', 'invalid_email');
+				}
+
+				invalid_left_span.appendChild(invalid_left_text);
+				invalid_right_span.appendChild(invalid_right_text);
+				valid_span.appendChild(valid_email);
+
+				validated_text.appendChild(invalid_left_span);
+				validated_text.appendChild(valid_span);
+				validated_text.appendChild(invalid_right_span);
+
+				validated_text_container.appendChild(validated_text);
+			}
+
+			function cleanEmail(email){ 
+				var interior_error_cases = /^.{1,}@.{2,}\..{2,}/g,
+				reggie = /\w|[\.!#\$%&'\*\+\-\/=\?\^_`\{\|\}~]/,
+				str_length = email.length,
+				atsign_index = email.indexOf('@'),
+				right_cursor = atsign_index + 1,
+				left_cursor = atsign_index - 1;
+
+				while (reggie.test(email.charAt(right_cursor))) { right_cursor++;	}
+				while (reggie.test(email.charAt(left_cursor))) { left_cursor--; }
+
+				// In case of @ sign as first character
+				if (atsign_index - left_cursor <= 1) {
+					left_cursor++
+					right_cursor++;
+					while (reggie.test(email.charAt(right_cursor))) { right_cursor++;	}
+				}
+
+				// Flag but don't slice interior issues 
+				if (interior_error_cases.test(email)) {
+					markAsInvalid(str_length, right_cursor, left_cursor, email);
+					} else { 
+					markAsInvalid(str_length, right_cursor, left_cursor, email, true); 
+				}
+
+				// I laid down my flag here, for now. 
+				// This rabbit hole goes deep, email validation
+
+				var clean_email = email.slice(left_cursor+1, right_cursor);
+				return clean_email;
+			}	
+
+			function cleanList(){
+				var email_list = document.getElementById("email_list"), 
+				intro = document.getElementById("intro"),
+				list = email_list.value, 
+				emails = [],
+				regex = /[^,;\s\r]+@[^,;\s\r]+/g, 
+				item;
+
+				// One element contains original text removed of detritus
+				// The second contains 'sliced' versions, presumably copyable and pasteable
+				var validated_text_container = document.createElement("div");
+				var clean_email_list = document.createElement("div");
+
+				validated_text_container.setAttribute('id', 'validated_text_container');
+				clean_email_list.setAttribute('id', 'clean_email_list');
+			
+				// Append VTC early so that markAsInvalid can append; a flaw
+				form.appendChild(validated_text_container);
+
+				// Scrub each email and pump to Clean Email List, pre-appending
+				while (item = regex.exec(list)) {
+					emails.push(item[0]);
+				}
+
+				for (i=0; i<emails.length; i++){
+					var clean = cleanEmail(emails[i]);
+					emails[i] = clean;
+					var p = document.createElement('p');
+					var node = document.createTextNode(clean);
+					p.appendChild(node);
+					clean_email_list.appendChild(p);
+				};
+
+				// Prepare form for appending and append
+				form.removeChild(email_list);
+				intro.className = "hidden";
+				form.style.width = "800px";
+
+				form.appendChild(clean_email_list);
+
+				// Allow for recirculation rather than full site refresh 
+				button.setAttribute('value', 'Refresh');
+				button.className = "refresh_button";
+				button.onclick = function() {
+					form.removeChild(clean_email_list);
+					form.removeChild(validated_text_container);
+					form.style.width= "300px";
+
+					setTimeout(function(){
+						var fresh_list = document.createElement('textarea');
+						fresh_list.setAttribute('name','email_list');
+						fresh_list.setAttribute('id','email_list');
+						form.insertBefore(fresh_list, form.childNodes[4]);
+					}, 300);
+
+					this.setAttribute('value', 'Populate');
+					this.className = "";
+					button.onclick = function(){
+						cleanList();
+					};
+				}
+			}
+
+			(function() {
+				button.onclick = function(){
+					cleanList();
+				}
+			})();
+		</script>
+	</body>
+</html>
+
